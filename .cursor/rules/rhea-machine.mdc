@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+我们在构建一个新的qemu riscv machine, 请参考其它已存在于hw/riscv/的riscv machines, 如spike, virt等, 要求代码规范简洁清晰.

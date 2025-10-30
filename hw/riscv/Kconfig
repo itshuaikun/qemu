@@ -119,3 +119,10 @@ config SPIKE
     select HTIF
     select RISCV_ACLINT
     select SIFIVE_PLIC
+
+config RHEA
+    bool
+    default y
+    depends on RISCV64
+    select SIFIVE_PLIC
+    select SIFIVE_TEST
