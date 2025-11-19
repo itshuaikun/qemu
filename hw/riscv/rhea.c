@@ -21,7 +21,7 @@ DECLARE_INSTANCE_CHECKER(RheaMachineState, RHEA_MACHINE,
 
 typedef struct RheaMachineState {
     MachineState parent_obj;
-    RISCVHartArrayState soc[RHEA_SOCKETS_MAX];
+    RISCVHartArrayState cpus[RHEA_SOCKETS_MAX];
 } RheaMachineState;
 
 enum {
@@ -43,7 +43,7 @@ static void rhea_machine_init(MachineState *ms)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    char *soc_name;
+    char *cpu_name;
     int i, base_hartid, hart_count;
 
     /* Check socket count limit */
@@ -72,19 +72,19 @@ static void rhea_machine_init(MachineState *ms)
             exit(1);
         }
 
-        soc_name = g_strdup_printf("soc%d", i);
-        object_initialize_child(OBJECT(ms), soc_name, &s->soc[i],
+        cpu_name = g_strdup_printf("cpu%d", i);
+        object_initialize_child(OBJECT(ms), cpu_name, &s->cpus[i],
                                 TYPE_RISCV_HART_ARRAY);
-        g_free(soc_name);
-        object_property_set_str(OBJECT(&s->soc[i]), "cpu-type",
+        g_free(cpu_name);
+        object_property_set_str(OBJECT(&s->cpus[i]), "cpu-type",
                                 ms->cpu_type, &error_abort);
-        object_property_set_int(OBJECT(&s->soc[i]), "hartid-base",
+        object_property_set_int(OBJECT(&s->cpus[i]), "hartid-base",
                                 base_hartid, &error_abort);
-        object_property_set_int(OBJECT(&s->soc[i]), "num-harts",
+        object_property_set_int(OBJECT(&s->cpus[i]), "num-harts",
                                 hart_count, &error_abort);
-        object_property_set_int(OBJECT(&s->soc[i]), "resetvec",
+        object_property_set_int(OBJECT(&s->cpus[i]), "resetvec",
                                 rhea_memmap[RHEA_ROM].base, &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->soc[i]), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(&s->cpus[i]), &error_fatal);
     }
 
     /* register system main memory (actual RAM) */
@@ -139,9 +139,10 @@ static const TypeInfo rhea_machine_typeinfo = {
         .instance_size = sizeof(RheaMachineState),
 };
 
+static struct TypeImpl* rhea_machine_TypeImpl;
 static void rhea_machine_init_register_types(void)
 {
-    type_register_static(&rhea_machine_typeinfo);
+    rhea_machine_TypeImpl = type_register_static(&rhea_machine_typeinfo);
 }
 
 type_init(rhea_machine_init_register_types)
