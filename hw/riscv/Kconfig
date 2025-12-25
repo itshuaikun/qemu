@@ -128,3 +128,10 @@ config XIANGSHAN_KUNMINGHU
     select RISCV_APLIC
     select RISCV_IMSIC
     select SERIAL_MM
+
+config RHEA
+    bool
+    default y
+    depends on RISCV64
+    select SIFIVE_PLIC
+    select SIFIVE_TEST
