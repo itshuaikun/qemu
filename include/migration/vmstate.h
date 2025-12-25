@@ -218,11 +218,11 @@ struct VMStateDescription {
     int minimum_version_id;
     MigrationPriority priority;
     int (*pre_load)(void *opaque);
-    int (*pre_load_errp)(void *opaque, Error **errp);
+    bool (*pre_load_errp)(void *opaque, Error **errp);
     int (*post_load)(void *opaque, int version_id);
-    int (*post_load_errp)(void *opaque, int version_id, Error **errp);
+    bool (*post_load_errp)(void *opaque, int version_id, Error **errp);
     int (*pre_save)(void *opaque);
-    int (*pre_save_errp)(void *opaque, Error **errp);
+    bool (*pre_save_errp)(void *opaque, Error **errp);
     int (*post_save)(void *opaque);
     bool (*needed)(void *opaque);
     bool (*dev_unplug_pending)(void *opaque);
@@ -732,7 +732,7 @@ extern const VMStateInfo vmstate_info_qlist;
     .version_id = (_version),                                        \
     .size       = (_size),                                           \
     .info       = &vmstate_info_buffer,                              \
-    .flags      = VMS_BUFFER|VMS_POINTER,                            \
+    .flags      = VMS_BUFFER | VMS_POINTER,                          \
     .offset     = offsetof(_state, _field),                          \
 }
 

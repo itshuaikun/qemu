@@ -14,6 +14,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/arm/boot.h"
+#include "hw/arm/machines-qom.h"
 
 #define TYPE_FBY35 MACHINE_TYPE_NAME("fby35")
 OBJECT_DECLARE_SIMPLE_TYPE(Fby35State, FBY35);
@@ -174,6 +175,7 @@ static void fby35_class_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Meta Platforms fby35";
+    mc->deprecation_reason = "For a multi-soc machine, use 'ast2700fc' instead";
     mc->init = fby35_init;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
@@ -194,6 +196,7 @@ static const TypeInfo fby35_types[] = {
         .class_init = fby35_class_init,
         .instance_size = sizeof(Fby35State),
         .instance_init = fby35_instance_init,
+        .interfaces = arm_machine_interfaces,
     },
 };
 

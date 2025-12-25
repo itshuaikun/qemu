@@ -303,20 +303,23 @@ TCGv_i32 add_reg_for_lit(DisasContext *s, int reg, int ofs)
    marked as dead.  */
 void store_reg(DisasContext *s, int reg, TCGv_i32 var)
 {
+    uint32_t mask = 0;
+
     if (reg == 15) {
-        /* In Thumb mode, we must ignore bit 0.
+        /*
+         * In Thumb mode, we must ignore bit 0.
          * In ARM mode, for ARMv4 and ARMv5, it is UNPREDICTABLE if bits [1:0]
          * are not 0b00, but for ARMv6 and above, we must ignore bits [1:0].
          * We choose to ignore [1:0] in ARM mode for all architecture versions.
          */
-        tcg_gen_andi_i32(var, var, s->thumb ? ~1 : ~3);
+        mask = s->thumb ? 1 : 3;
         s->base.is_jmp = DISAS_JUMP;
         s->pc_save = -1;
     } else if (reg == 13 && arm_dc_feature(s, ARM_FEATURE_M)) {
         /* For M-profile SP bits [1:0] are always zero */
-        tcg_gen_andi_i32(var, var, ~3);
+        mask = 3;
     }
-    tcg_gen_mov_i32(cpu_R[reg], var);
+    tcg_gen_andi_i32(cpu_R[reg], var, ~mask);
 }
 
 /*
@@ -1310,7 +1313,7 @@ static void gen_goto_ptr(void)
  * cpu_loop_exec. Any live exit_requests will be processed as we
  * enter the next TB.
  */
-static void gen_goto_tb(DisasContext *s, int n, target_long diff)
+static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, target_long diff)
 {
     if (translator_use_goto_tb(&s->base, s->pc_curr + diff)) {
         /*
@@ -1323,12 +1326,12 @@ static void gen_goto_tb(DisasContext *s, int n, target_long diff)
          */
         if (tb_cflags(s->base.tb) & CF_PCREL) {
             gen_update_pc(s, diff);
-            tcg_gen_goto_tb(n);
+            tcg_gen_goto_tb(tb_slot_idx);
         } else {
-            tcg_gen_goto_tb(n);
+            tcg_gen_goto_tb(tb_slot_idx);
             gen_update_pc(s, diff);
         }
-        tcg_gen_exit_tb(s->base.tb, n);
+        tcg_gen_exit_tb(s->base.tb, tb_slot_idx);
     } else {
         gen_update_pc(s, diff);
         gen_goto_ptr();

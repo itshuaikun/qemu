@@ -30,6 +30,8 @@
 #include "hw/pci-host/astro.h"
 #include "hw/pci-host/dino.h"
 #include "hw/misc/lasi.h"
+#include "hw/scsi/ncr53c710.h"
+#include "hw/scsi/lasi_ncr710.h"
 #include "hppa_hardware.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -43,12 +45,10 @@ struct HppaMachineState {
     MachineState parent_obj;
 };
 
-#define MIN_SEABIOS_HPPA_VERSION 12 /* require at least this fw version */
+#define MIN_SEABIOS_HPPA_VERSION 19 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON        (FIRMWARE_END - 0x10)
 static hwaddr soft_power_reg;
-
-#define enable_lasi_lan()       0
 
 static DeviceState *lasi_dev;
 
@@ -149,7 +149,7 @@ static void io_cpu_write(void *opaque, hwaddr addr,
         ch = val;
         debugout = serial_hd(0);
         if (debugout) {
-            qemu_chr_fe_write_all(debugout->be, &ch, 1);
+            qemu_chr_fe_write_all(debugout->fe, &ch, 1);
         } else {
             fprintf(stderr, "%c", ch);
         }
@@ -346,7 +346,7 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
 }
 
 /*
- * Last creation step: Add SCSI discs, NICs, graphics & load firmware
+ * Last creation step: Add NICs, graphics & load firmware
  */
 static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                                         TranslateFn *translate)
@@ -361,12 +361,6 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     MemoryRegion *rom_region;
     SysBusDevice *s;
 
-    /* SCSI disk setup. */
-    if (drive_get_max_bus(IF_SCSI) >= 0) {
-        dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
-        lsi53c8xx_handle_legacy_cmdline(dev);
-    }
-
     /* Graphics setup. */
     if (machine->enable_graphics && vga_interface_type != VGA_NONE) {
         dev = qdev_new("artist");
@@ -380,27 +374,22 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
         }
     }
 
-    /* Network setup. */
-    if (lasi_dev) {
-        lasi_82596_init(addr_space, translate(NULL, LASI_LAN_HPA),
-                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
-                        enable_lasi_lan());
-    }
+    if (pci_bus) {
+        pci_init_nic_devices(pci_bus, mc->default_nic);
 
-    pci_init_nic_devices(pci_bus, mc->default_nic);
-
-    /* BMC board: HP Diva GSP */
-    dev = qdev_new("diva-gsp");
-    if (!object_property_get_bool(OBJECT(dev), "disable", NULL)) {
-        pci_dev = pci_new_multifunction(PCI_DEVFN(2, 0), "diva-gsp");
-        if (!lasi_dev) {
-            /* bind default keyboard/serial to Diva card */
-            qdev_prop_set_chr(DEVICE(pci_dev), "chardev1", serial_hd(0));
-            qdev_prop_set_chr(DEVICE(pci_dev), "chardev2", serial_hd(1));
-            qdev_prop_set_chr(DEVICE(pci_dev), "chardev3", serial_hd(2));
-            qdev_prop_set_chr(DEVICE(pci_dev), "chardev4", serial_hd(3));
+        /* BMC board: HP Diva GSP PCI card */
+        dev = qdev_new("diva-gsp");
+        if (dev && !object_property_get_bool(OBJECT(dev), "disable", NULL)) {
+            pci_dev = pci_new_multifunction(PCI_DEVFN(2, 0), "diva-gsp");
+            if (!lasi_dev) {
+                /* bind default keyboard/serial to Diva card */
+                qdev_prop_set_chr(DEVICE(pci_dev), "chardev1", serial_hd(0));
+                qdev_prop_set_chr(DEVICE(pci_dev), "chardev2", serial_hd(1));
+                qdev_prop_set_chr(DEVICE(pci_dev), "chardev3", serial_hd(2));
+                qdev_prop_set_chr(DEVICE(pci_dev), "chardev4", serial_hd(3));
+            }
+            pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
         }
-        pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
     }
 
     /* create USB OHCI controller for USB keyboard & mouse on Astro machines */
@@ -495,7 +484,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
             ram_addr_t initrd_base;
             int64_t initrd_size;
 
-            initrd_size = get_image_size(initrd_filename);
+            initrd_size = get_image_size(initrd_filename, NULL);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
@@ -516,7 +505,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                 exit(1);
             }
 
-            load_image_targphys(initrd_filename, initrd_base, initrd_size);
+            load_image_targphys(initrd_filename, initrd_base, initrd_size,
+                                NULL);
             cpu[0]->env.initrd_base = initrd_base;
             cpu[0]->env.initrd_end  = initrd_base + initrd_size;
         }
@@ -533,6 +523,82 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     /* Keep initial kernel_entry for first boot */
     cpu[0]->env.kernel_entry = kernel_entry;
+}
+
+/*
+ * Create HP 715/64 workstation
+ */
+static void machine_HP_715_init(MachineState *machine)
+{
+    DeviceState *dev;
+    MemoryRegion *addr_space = get_system_memory();
+    TranslateFn *translate;
+    ISABus *isa_bus;
+
+    /* Create CPUs and RAM.  */
+    translate = machine_HP_common_init_cpus(machine);
+
+    if (hppa_is_pa20(&cpu[0]->env)) {
+        error_report("The HP 715/64 workstation requires a 32-bit "
+                     "CPU. Use '-machine 715' instead.");
+        exit(1);
+    }
+
+    /* Create ISA bus, needed for PS/2 kbd/mouse port emulation */
+    isa_bus = hppa_isa_bus(translate(NULL, IDE_HPA));
+    assert(isa_bus);
+
+    /* Init Lasi chip */
+    lasi_dev = DEVICE(lasi_init());
+    memory_region_add_subregion(addr_space, translate(NULL, LASI_HPA_715),
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(lasi_dev), 0));
+
+    /* Serial ports: Lasi use a 7.272727 MHz clock. */
+    serial_mm_init(addr_space, translate(NULL, LASI_HPA_715 + LASI_UART + 0x800), 0,
+        qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
+        serial_hd(0), DEVICE_BIG_ENDIAN);
+
+    /* Parallel port */
+    parallel_mm_init(addr_space, translate(NULL, LASI_HPA_715 + LASI_LPT + 0x800), 0,
+                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LPT_HPA),
+                     parallel_hds[0]);
+
+    /* PS/2 Keyboard/Mouse */
+    dev = qdev_new(TYPE_LASIPS2);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
+    memory_region_add_subregion(addr_space,
+                                translate(NULL, LASI_HPA_715 + LASI_PS2),
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
+                                                       0));
+    memory_region_add_subregion(addr_space,
+                                translate(NULL, LASI_HPA_715 + LASI_PS2 + 0x100),
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
+                                                       1));
+    /* SCSI disk setup. */
+    if (drive_get_max_bus(IF_SCSI) >= 0) {
+        dev = lasi_ncr710_init(addr_space,
+                               translate(NULL, LASI_HPA_715 + 0x6000),
+                               qdev_get_gpio_in(lasi_dev, LASI_IRQ_SCSI_HPA));
+        assert(dev);
+        lasi_ncr710_handle_legacy_cmdline(dev);
+    }
+
+    /* LASI i82596 network */
+    dev = qemu_create_nic_device(TYPE_LASI_82596, true, "lasi");
+    if (dev) {
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                           qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA));
+        memory_region_add_subregion(addr_space,
+                                    translate(NULL, LASI_HPA_715 + LASI_LAN),
+                                    sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
+    }
+
+    /* Add NICs, graphics & load firmware */
+    machine_HP_common_init_tail(machine, NULL, translate);
 }
 
 /*
@@ -574,7 +640,7 @@ static void machine_HP_B160L_init(MachineState *machine)
     assert(isa_bus);
 
     /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
-    serial_mm_init(addr_space, translate(NULL, LASI_UART_HPA + 0x800), 0,
+    serial_mm_init(addr_space, translate(NULL, LASI_HPA + LASI_UART + 0x800), 0,
         qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
         serial_hd(0), DEVICE_BIG_ENDIAN);
 
@@ -583,8 +649,9 @@ static void machine_HP_B160L_init(MachineState *machine)
         serial_hd(1), DEVICE_BIG_ENDIAN);
 
     /* Parallel port */
-    parallel_mm_init(addr_space, translate(NULL, LASI_LPT_HPA + 0x800), 0,
-                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
+    parallel_mm_init(addr_space,
+                     translate(NULL, LASI_HPA + LASI_LPT + 0x800), 0,
+                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LPT_HPA),
                      parallel_hds[0]);
 
     /* PS/2 Keyboard/Mouse */
@@ -593,15 +660,21 @@ static void machine_HP_B160L_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
     memory_region_add_subregion(addr_space,
-                                translate(NULL, LASI_PS2KBD_HPA),
+                                translate(NULL, LASI_HPA + LASI_PS2),
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
                                                        0));
     memory_region_add_subregion(addr_space,
-                                translate(NULL, LASI_PS2KBD_HPA + 0x100),
+                                translate(NULL, LASI_HPA + LASI_PS2 + 0x100),
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
                                                        1));
 
-    /* Add SCSI discs, NICs, graphics & load firmware */
+    /* SCSI disk setup. */
+    if (drive_get_max_bus(IF_SCSI) >= 0) {
+        dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+        lsi53c8xx_handle_legacy_cmdline(dev);
+    }
+
+    /* Add NICs, graphics & load firmware */
     machine_HP_common_init_tail(machine, pci_bus, translate);
 }
 
@@ -644,7 +717,13 @@ static void machine_HP_C3700_init(MachineState *machine)
     pci_bus = PCI_BUS(qdev_get_child_bus(DEVICE(astro->elroy[0]), "pci"));
     assert(pci_bus);
 
-    /* Add SCSI discs, NICs, graphics & load firmware */
+    /* SCSI disk setup. */
+    if (drive_get_max_bus(IF_SCSI) >= 0) {
+        DeviceState *dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+        lsi53c8xx_handle_legacy_cmdline(dev);
+    }
+
+    /* Add NICs, graphics & load firmware */
     machine_HP_common_init_tail(machine, pci_bus, translate);
 }
 
@@ -741,6 +820,25 @@ static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 1024 * MiB;
 }
 
+static void HP_715_machine_init_class_init(ObjectClass *oc, const void *data)
+{
+    static const char * const valid_cpu_types[] = {
+        TYPE_HPPA_CPU,
+        NULL
+    };
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "HP 715/64 workstation";
+    mc->default_cpu_type = TYPE_HPPA_CPU;
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->init = machine_HP_715_init;
+    /* can only support up to max. 8 CPUs due inventory major numbers */
+    mc->max_cpus = MIN_CONST(HPPA_MAX_CPUS, 8);
+    mc->default_ram_size = 256 * MiB;
+    mc->default_nic = TYPE_LASI_82596;
+}
+
+
 static const TypeInfo hppa_machine_types[] = {
     {
         .name           = TYPE_HPPA_COMMON_MACHINE,
@@ -760,6 +858,10 @@ static const TypeInfo hppa_machine_types[] = {
         .name = MACHINE_TYPE_NAME("C3700"),
         .parent = TYPE_HPPA_COMMON_MACHINE,
         .class_init = HP_C3700_machine_init_class_init,
+    }, {
+        .name = MACHINE_TYPE_NAME("715"),
+        .parent = TYPE_HPPA_COMMON_MACHINE,
+        .class_init = HP_715_machine_init_class_init,
     },
 };
 

@@ -208,6 +208,8 @@ F: hw/cpu/a*mpcore.c
 F: include/hw/cpu/a*mpcore.h
 F: docs/system/target-arm.rst
 F: docs/system/arm/cpu-features.rst
+F: gdb-xml/arm*.xml
+F: gdb-xml/aarch64*.xml
 
 ARM SMMU
 M: Eric Auger <eric.auger@redhat.com>
@@ -362,8 +364,8 @@ F: target/rx/
 
 S390 TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
-M: David Hildenbrand <david@redhat.com>
-R: Ilya Leoshkevich <iii@linux.ibm.com>
+M: Ilya Leoshkevich <iii@linux.ibm.com>
+R: David Hildenbrand <david@kernel.org>
 S: Maintained
 F: target/s390x/
 F: target/s390x/tcg
@@ -545,7 +547,8 @@ F: include/system/hvf.h
 F: include/system/hvf_int.h
 
 WHPX CPUs
-M: Sunil Muthuswamy <sunilmut@microsoft.com>
+M: Pedro Barbuda <pbarbuda@microsoft.com>
+M: Mohamed Mediouni <mohamed@unpredictable.fr>
 S: Supported
 F: target/i386/whpx/
 F: accel/stubs/whpx-stub.c
@@ -671,6 +674,7 @@ F: tests/docker/dockerfiles/emsdk-wasm32-cross.docker
 
 Alpha Machines
 --------------
+Clipper
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
 F: hw/alpha/
@@ -1283,6 +1287,8 @@ F: hw/net/*i82596*
 F: hw/misc/lasi.c
 F: hw/pci-host/astro.c
 F: hw/pci-host/dino.c
+F: hw/scsi/lasi_ncr710.*
+F: hw/scsi/ncr53c710.*
 F: include/hw/input/lasips2.h
 F: include/hw/misc/lasi.h
 F: include/hw/net/lasi_82596.h
@@ -1638,19 +1644,20 @@ F: hw/display/sm501*
 F: hw/ide/sii3112.c
 F: hw/rtc/m41t80.c
 F: pc-bios/dtb/canyonlands.dt[sb]
-F: pc-bios/u-boot-sam460ex-20100605.bin
+F: pc-bios/u-boot-sam460ex.bin
 F: roms/u-boot-sam460ex
 F: docs/system/ppc/amigang.rst
 F: tests/functional/ppc/test_sam460ex.py
 
-pegasos2
+pegasos
 M: BALATON Zoltan <balaton@eik.bme.hu>
 L: qemu-ppc@nongnu.org
 S: Maintained
-F: hw/ppc/pegasos2.c
+F: hw/ppc/pegasos.c
 F: hw/pci-host/mv64361.c
 F: hw/pci-host/mv643xx.h
 F: include/hw/pci-host/mv64361.h
+F: pc-bios/dtb/pegasos[12].dt[sb]
 
 amigaone
 M: BALATON Zoltan <balaton@eik.bme.hu>
@@ -1855,7 +1862,8 @@ F: target/s390x/ioinst.c
 L: qemu-s390x@nongnu.org
 
 S390 CPU models
-M: David Hildenbrand <david@redhat.com>
+M: Hendrik Brueckner <brueckner@linux.ibm.com>
+R: David Hildenbrand <david@kernel.org>
 S: Maintained
 F: target/s390x/cpu_features*.[ch]
 F: target/s390x/cpu_models.[ch]
@@ -2001,6 +2009,7 @@ M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
 F: include/qemu/target-info*.h
 F: target-info*.c
+F: configs/targets/*.c
 
 Xtensa Machines
 ---------------
@@ -2285,7 +2294,7 @@ S: Maintained
 F: hw/usb/dev-serial.c
 
 VFIO
-M: Alex Williamson <alex.williamson@redhat.com>
+M: Alex Williamson <alex@shazbot.org>
 M: Cédric Le Goater <clg@redhat.com>
 S: Supported
 F: hw/vfio/*
@@ -2297,7 +2306,7 @@ F: migration/vfio-stub.c
 F: tests/functional/aarch64/test_device_passthrough.py
 
 vfio-igd
-M: Alex Williamson <alex.williamson@redhat.com>
+M: Alex Williamson <alex@shazbot.org>
 M: Cédric Le Goater <clg@redhat.com>
 M: Tomita Moeko <tomitamoeko@gmail.com>
 S: Supported
@@ -2376,7 +2385,7 @@ F: tests/functional/x86_64/test_virtio_version.py
 
 virtio-balloon
 M: Michael S. Tsirkin <mst@redhat.com>
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 S: Maintained
 F: docs/interop/virtio-balloon-stats.rst
 F: hw/virtio/virtio-balloon*.c
@@ -2524,7 +2533,7 @@ F: hw/virtio/virtio-crypto-pci.c
 F: include/hw/virtio/virtio-crypto.h
 
 virtio based memory device
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 S: Supported
 F: hw/s390x/virtio-ccw-md.c
 F: hw/s390x/virtio-ccw-md.h
@@ -2533,7 +2542,7 @@ F: hw/virtio/virtio-md-*.c
 F: include/hw/virtio/virtio-md-pci.h
 
 virtio-mem
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 S: Supported
 W: https://virtio-mem.gitlab.io/
 F: hw/virtio/virtio-mem.c
@@ -2911,7 +2920,7 @@ L: qemu-s390x@nongnu.org
 S390 floating interrupt controller
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
-M: David Hildenbrand <david@redhat.com>
+R: David Hildenbrand <david@kernel.org>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/intc/s390_flic*.c
@@ -2971,6 +2980,7 @@ X: audio/paaudio.c
 X: audio/sdlaudio.c
 X: audio/sndioaudio.c
 X: audio/spiceaudio.c
+F: include/qemu/audio*.h
 F: qapi/audio.json
 
 ALSA Audio backend
@@ -3106,7 +3116,8 @@ T: git https://gitlab.com/jsnow/qemu.git jobs
 T: git https://gitlab.com/vsementsov/qemu.git block
 
 CheckPoint and Restart (CPR)
-R: Steve Sistare <steven.sistare@oracle.com>
+R: Peter Xu <peterx@redhat.com>
+R: Fabiano Rosas <farosas@suse.de>
 S: Supported
 F: hw/vfio/cpr*
 F: include/hw/vfio/vfio-cpr.h
@@ -3213,6 +3224,14 @@ F: scripts/coccinelle/remove_local_err.cocci
 F: scripts/coccinelle/use-error_fatal.cocci
 F: scripts/coccinelle/errp-guard.cocci
 
+Firmware Assisted Dump (fadump) for sPAPR (pseries)
+M: Aditya Gupta <adityag@linux.ibm.com>
+R: Sourabh Jain <sourabhjain@linux.ibm.com>
+S: Maintained
+F: include/hw/ppc/spapr_fadump.h
+F: hw/ppc/spapr_fadump.c
+F: tests/functional/ppc64/test_fadump.py
+
 GDB stub
 M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
@@ -3230,7 +3249,7 @@ T: git https://gitlab.com/stsquad/qemu gdbstub/next
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Xu <peterx@redhat.com>
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
 F: include/system/ioport.h
@@ -3250,7 +3269,7 @@ F: system/ram-block-attributes.c
 F: scripts/coccinelle/memory-region-housekeeping.cocci
 
 Memory devices
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 M: Igor Mammedov <imammedo@redhat.com>
 R: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
 S: Supported
@@ -3353,7 +3372,7 @@ R: Ilya Maximets <i.maximets@ovn.org>
 F: net/af-xdp.c
 
 Host Memory Backends
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c
@@ -3363,7 +3382,7 @@ T: git https://gitlab.com/ehabkost/qemu.git machine-next
 
 Cryptodev Backends
 M: Gonglei <arei.gonglei@huawei.com>
-M: zhenwei pi <pizhenwei@bytedance.com>
+M: zhenwei pi <zhenwei.pi@linux.dev>
 S: Maintained
 F: include/system/cryptodev*.h
 F: backends/cryptodev*.c
@@ -3892,6 +3911,17 @@ F: roms/edk2-*
 F: tests/data/uefi-boot-images/
 F: tests/uefi-test-tools/
 
+IGVM Firmware
+M: Gerd Hoffmann <kraxel@redhat.com>
+M: Stefano Garzarella <sgarzare@redhat.com>
+R: Ani Sinha <anisinha@redhat.com>
+S: Maintained
+F: backends/igvm*.c
+F: docs/system/igvm.rst
+F: include/system/igvm*.h
+F: stubs/igvm.c
+F: target/i386/igvm.c
+
 VT-d Emulation
 M: Michael S. Tsirkin <mst@redhat.com>
 R: Jason Wang <jasowang@redhat.com>
@@ -3905,8 +3935,10 @@ F: tests/functional/x86_64/test_intel_iommu.py
 F: tests/qtest/intel-iommu-test.c
 
 AMD-Vi Emulation
-S: Orphan
-F: hw/i386/amd_iommu.?
+M: Alejandro Jimenez <alejandro.j.jimenez@oracle.com>
+R: Sairaj Kodilkar <sarunkod@amd.com>
+S: Supported
+F: hw/i386/amd_iommu*
 
 OpenSBI Firmware
 L: qemu-riscv@nongnu.org
@@ -4067,7 +4099,7 @@ F: block/rbd.c
 VHDX
 M: Jeff Cody <codyprime@gmail.com>
 L: qemu-block@nongnu.org
-S: Supported
+S: Odd Fixes
 F: block/vhdx*
 
 VDI
@@ -4396,7 +4428,9 @@ Functional testing framework
 M: Thomas Huth <thuth@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Daniel P. Berrange <berrange@redhat.com>
+S: Maintained
 F: docs/devel/testing/functional.rst
+F: scripts/clean_functional_cache.py
 F: tests/functional/qemu_test/
 
 Windows Hosted Continuous Integration
@@ -4410,12 +4444,13 @@ R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: tests/tcg/Makefile.target
 
-GitLab custom runner (Works On Arm Sponsored)
+GitLab custom runners (HW sponsored by Linaro, OSOUL and IBM)
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
-F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch64.yml
-F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch32.yml
+F: .gitlab-ci.d/custom-runners/ubuntu-24.04-aarch64.yml
+F: .gitlab-ci.d/custom-runners/ubuntu-24.04-s390x.yml
+F: .gitlab-ci.d/custom-runners/debian-13-ppc64le.yml
 
 Documentation
 -------------

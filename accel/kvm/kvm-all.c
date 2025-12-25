@@ -525,7 +525,8 @@ static int do_kvm_destroy_vcpu(CPUState *cpu)
     }
 
     /* If I am the CPU that created coalesced_mmio_ring, then discard it */
-    if (s->coalesced_mmio_ring == (void *)cpu->kvm_run + PAGE_SIZE) {
+    if (s->coalesced_mmio_ring ==
+           (void *)cpu->kvm_run + s->coalesced_mmio * PAGE_SIZE) {
         s->coalesced_mmio_ring = NULL;
     }
 
@@ -3372,10 +3373,10 @@ int kvm_vm_ioctl(KVMState *s, unsigned long type, ...)
     trace_kvm_vm_ioctl(type, arg);
     accel_ioctl_begin();
     ret = ioctl(s->vmfd, type, arg);
-    accel_ioctl_end();
     if (ret == -1) {
         ret = -errno;
     }
+    accel_ioctl_end();
     return ret;
 }
 
@@ -3412,10 +3413,10 @@ int kvm_device_ioctl(int fd, unsigned long type, ...)
     trace_kvm_device_ioctl(fd, type, arg);
     accel_ioctl_begin();
     ret = ioctl(fd, type, arg);
-    accel_ioctl_end();
     if (ret == -1) {
         ret = -errno;
     }
+    accel_ioctl_end();
     return ret;
 }
 

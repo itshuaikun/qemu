@@ -8770,6 +8770,12 @@ static void x86_cpu_reset_hold(Object *obj, ResetType type)
 
     cs->halted = !cpu_is_bsp(cpu);
 
+#if defined(CONFIG_IGVM)
+    if (cpu_is_bsp(cpu)) {
+        qigvm_x86_bsp_reset(env);
+    }
+#endif
+
     if (kvm_enabled()) {
         kvm_arch_reset_vcpu(cpu);
     }
@@ -8789,7 +8795,7 @@ void x86_cpu_after_reset(X86CPU *cpu)
     }
 
     if (cpu->apic_state) {
-        device_cold_reset(cpu->apic_state);
+        device_cold_reset(DEVICE(cpu->apic_state));
     }
 #endif
 }

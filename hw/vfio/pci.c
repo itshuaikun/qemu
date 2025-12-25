@@ -2975,9 +2975,9 @@ bool vfio_pci_populate_device(VFIOPCIDevice *vdev, Error **errp)
         return false;
     }
 
-    if (vbasedev->num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
+    if (vbasedev->num_initial_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
         error_setg(errp, "unexpected number of io regions %u",
-                   vbasedev->num_regions);
+                   vbasedev->num_initial_regions);
         return false;
     }
 
@@ -3871,7 +3871,7 @@ static void vfio_pci_class_init(ObjectClass *klass, const void *data)
                                           "(DEBUG)");
     object_class_property_set_description(klass, /* 5.2, 8.0 non-experimetal */
                                           "enable-migration",
-                                          "Enale device migration. Also requires a host VFIO PCI "
+                                          "Enable device migration. Also requires a host VFIO PCI "
                                           "variant or mdev driver with migration support enabled");
     object_class_property_set_description(klass, /* 8.1 */
                                           "vf-token",
